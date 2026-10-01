@@ -60,6 +60,7 @@ export {
 	parsePnpmWorkspacePackages,
 	type WorkspacePackage,
 	type WorkspaceResolution,
+	type WorkspaceResolutionOptions,
 } from "./workspace"
 export {
 	collectExternalPackages,

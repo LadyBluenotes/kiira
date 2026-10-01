@@ -84,6 +84,8 @@ export interface KiiraConfig {
 	engine?: KiiraEngine
 	overrides?: KiiraOverride[]
 	packageMode?: "workspace" | "packed"
+	/** Limit workspace dependency fallbacks to the package that owns each Markdown file. */
+	workspacePackageResolution?: "exhaustive" | "owner"
 	defaultValidate?: "type" | "runtime" | "none"
 	defaultFixture?: string
 	/**
@@ -132,6 +134,7 @@ export interface ResolvedKiiraConfig {
 	engine: KiiraEngine
 	overrides: KiiraOverride[]
 	packageMode: "workspace" | "packed"
+	workspacePackageResolution: "exhaustive" | "owner"
 	defaultValidate: "type" | "runtime" | "none"
 	defaultFixture?: string
 	defaultGroup: "none" | "file"

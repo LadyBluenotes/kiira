@@ -44,6 +44,7 @@ export function resolveConfig(config: Partial<KiiraConfig> = {}): ResolvedKiiraC
 		engine: config.engine ?? "auto",
 		overrides: config.overrides ?? [],
 		packageMode: config.packageMode ?? "workspace",
+		workspacePackageResolution: config.workspacePackageResolution ?? "exhaustive",
 		defaultValidate: config.defaultValidate ?? "type",
 		defaultFixture: config.defaultFixture,
 		defaultGroup: config.defaultGroup ?? "none",

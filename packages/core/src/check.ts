@@ -138,7 +138,8 @@ export interface CheckVirtualFilesInput {
  */
 export async function buildBaseOptions(
 	cwd: string,
-	resolved: ReturnType<typeof resolveConfig>
+	resolved: ReturnType<typeof resolveConfig>,
+	markdownFiles?: string[]
 ): Promise<ts.CompilerOptions> {
 	const tsconfigPath = resolveTsconfigPath(cwd, resolved.tsconfig)
 	const options = loadCompilerOptions(tsconfigPath)
@@ -153,7 +154,10 @@ export async function buildBaseOptions(
 	// dependencies resolvable from the repo root, where a pnpm isolated
 	// node_modules would otherwise hide them. User-defined paths win on conflict.
 	if (resolved.packageMode === "workspace") {
-		const ws = await buildWorkspaceResolution(cwd)
+		const ws = await buildWorkspaceResolution(cwd, {
+			workspacePackageResolution: resolved.workspacePackageResolution,
+			markdownFiles,
+		})
 		if (ws) {
 			options.baseUrl = options.baseUrl ?? ws.baseUrl
 			options.paths = { ...ws.paths, ...(options.paths ?? {}) }
@@ -193,7 +197,8 @@ export async function checkVirtualFiles({
 	}
 
 	const resolved = resolveConfig(config)
-	const options = await buildBaseOptions(cwd, resolved)
+	const markdownFiles = [...new Set(virtualFiles.map((vf) => vf.snippet.markdownFile))]
+	const options = await buildBaseOptions(cwd, resolved, markdownFiles)
 
 	// Partition by matching `overrides` (per-glob compiler options) and run a
 	// separate program per distinct option set, so e.g. Solid docs can use
