@@ -14,7 +14,7 @@ import * as vscode from "vscode"
 import { checkDocument } from "./check-document"
 import { KiiraCodeActionProvider } from "./code-actions"
 import { diagnosticCodeLabel, selectDiagnostics } from "./diagnostics"
-import { closeRemovedWorkspaceFolderSessions } from "./workspace-folders"
+import { WorkspaceFolderCheckLifecycle } from "./workspace-folders"
 
 const VIRTUAL_SCHEME = "kiira"
 
@@ -23,6 +23,7 @@ let output: vscode.OutputChannel
 const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>()
 const virtualFilesByDocument = new Map<string, VirtualFile[]>()
 const diagnosticsByDocument = new Map<string, KiiraDiagnostic[]>()
+const workspaceCheckLifecycle = new WorkspaceFolderCheckLifecycle()
 
 interface KiiraSettings {
 	enable: boolean
@@ -99,24 +100,37 @@ async function checkAndPublish(document: vscode.TextDocument): Promise<void> {
 		return
 	}
 
-	const config = await loadWorkspaceConfig(ctx.cwd, settings.configPath)
-	try {
-		const { diagnostics, virtualFiles } = await checkDocument({
-			cwd: ctx.cwd,
-			markdownFile: ctx.markdownFile,
-			text: document.getText(),
-			config,
-			markdownUri: document.uri.toString(),
-		})
-		virtualFilesByDocument.set(document.uri.toString(), virtualFiles)
-		const selected = selectDiagnostics(diagnostics, { showGenerated: settings.showGeneratedDiagnostics })
-		// Keep the rich diagnostics (with their `fix` payloads) so the code-action
-		// provider can offer quick fixes for what's currently shown.
-		diagnosticsByDocument.set(document.uri.toString(), selected)
-		collection.set(document.uri, selected.map(toVscodeDiagnostic))
-	} catch (error) {
-		output.appendLine(`Error checking ${ctx.markdownFile}: ${(error as Error).message}`)
-	}
+	await workspaceCheckLifecycle.run(ctx.cwd, async (isCurrent) => {
+		if (!isCurrent()) {
+			return
+		}
+		const config = await loadWorkspaceConfig(ctx.cwd, settings.configPath)
+		if (!isCurrent()) {
+			return
+		}
+		try {
+			const { diagnostics, virtualFiles } = await checkDocument({
+				cwd: ctx.cwd,
+				markdownFile: ctx.markdownFile,
+				text: document.getText(),
+				config,
+				markdownUri: document.uri.toString(),
+			})
+			if (!isCurrent()) {
+				return
+			}
+			virtualFilesByDocument.set(document.uri.toString(), virtualFiles)
+			const selected = selectDiagnostics(diagnostics, { showGenerated: settings.showGeneratedDiagnostics })
+			// Keep the rich diagnostics (with their `fix` payloads) so the code-action
+			// provider can offer quick fixes for what's currently shown.
+			diagnosticsByDocument.set(document.uri.toString(), selected)
+			collection.set(document.uri, selected.map(toVscodeDiagnostic))
+		} catch (error) {
+			if (isCurrent()) {
+				output.appendLine(`Error checking ${ctx.markdownFile}: ${(error as Error).message}`)
+			}
+		}
+	})
 }
 
 function scheduleCheck(document: vscode.TextDocument, delayMs: number): void {
@@ -140,17 +154,28 @@ async function checkWorkspaceCommand(): Promise<void> {
 	try {
 		for (const folder of vscode.workspace.workspaceFolders ?? []) {
 			const cwd = folder.uri.fsPath
-			const config = await loadWorkspaceConfig(cwd, settings.configPath)
-			const result = await checkMarkdownFiles({ cwd, config })
-			const byFile = new Map<string, KiiraDiagnostic[]>()
-			for (const d of selectDiagnostics(result.diagnostics, { showGenerated: settings.showGeneratedDiagnostics })) {
-				const list = byFile.get(d.markdownFile) ?? []
-				list.push(d)
-				byFile.set(d.markdownFile, list)
-			}
-			for (const [file, diags] of byFile) {
-				collection.set(vscode.Uri.file(join(cwd, file)), diags.map(toVscodeDiagnostic))
-			}
+			await workspaceCheckLifecycle.run(cwd, async (isCurrent) => {
+				if (!isCurrent()) {
+					return
+				}
+				const config = await loadWorkspaceConfig(cwd, settings.configPath)
+				if (!isCurrent()) {
+					return
+				}
+				const result = await checkMarkdownFiles({ cwd, config })
+				if (!isCurrent()) {
+					return
+				}
+				const byFile = new Map<string, KiiraDiagnostic[]>()
+				for (const d of selectDiagnostics(result.diagnostics, { showGenerated: settings.showGeneratedDiagnostics })) {
+					const list = byFile.get(d.markdownFile) ?? []
+					list.push(d)
+					byFile.set(d.markdownFile, list)
+				}
+				for (const [file, diags] of byFile) {
+					collection.set(vscode.Uri.file(join(cwd, file)), diags.map(toVscodeDiagnostic))
+				}
+			})
 		}
 	} catch (error) {
 		output.appendLine(`Workspace check failed: ${(error as Error).message}`)
@@ -227,7 +252,7 @@ export function activate(context: vscode.ExtensionContext): void {
 		output,
 		vscode.workspace.registerTextDocumentContentProvider(VIRTUAL_SCHEME, provider),
 		vscode.workspace.onDidChangeWorkspaceFolders((event) => {
-			void closeRemovedWorkspaceFolderSessions(event.removed).catch((error) => {
+			void workspaceCheckLifecycle.closeRemoved(event.removed).catch((error) => {
 				const message = error instanceof Error ? error.message : String(error)
 				output.appendLine(`Error closing native sessions for removed workspace folders: ${message}`)
 			})
