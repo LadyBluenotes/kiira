@@ -100,7 +100,7 @@ async function checkAndPublish(document: vscode.TextDocument): Promise<void> {
 		return
 	}
 
-	await workspaceCheckLifecycle.run(ctx.cwd, async (isCurrent) => {
+	await workspaceCheckLifecycle.runIfPresent(ctx.cwd, async (isCurrent) => {
 		if (!isCurrent()) {
 			return
 		}
@@ -154,7 +154,7 @@ async function checkWorkspaceCommand(): Promise<void> {
 	try {
 		for (const folder of vscode.workspace.workspaceFolders ?? []) {
 			const cwd = folder.uri.fsPath
-			await workspaceCheckLifecycle.run(cwd, async (isCurrent) => {
+			await workspaceCheckLifecycle.runIfPresent(cwd, async (isCurrent) => {
 				if (!isCurrent()) {
 					return
 				}
@@ -246,12 +246,14 @@ export function activate(context: vscode.ExtensionContext): void {
 	collection = vscode.languages.createDiagnosticCollection("kiira")
 	output = vscode.window.createOutputChannel("Kiira")
 	const provider = new VirtualContentProvider()
+	workspaceCheckLifecycle.setWorkspaceFolders(vscode.workspace.workspaceFolders ?? [])
 
 	context.subscriptions.push(
 		collection,
 		output,
 		vscode.workspace.registerTextDocumentContentProvider(VIRTUAL_SCHEME, provider),
 		vscode.workspace.onDidChangeWorkspaceFolders((event) => {
+			workspaceCheckLifecycle.setWorkspaceFolders(vscode.workspace.workspaceFolders ?? [])
 			void workspaceCheckLifecycle.closeRemoved(event.removed).catch((error) => {
 				const message = error instanceof Error ? error.message : String(error)
 				output.appendLine(`Error closing native sessions for removed workspace folders: ${message}`)
