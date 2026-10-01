@@ -165,7 +165,7 @@ export default defineConfig({
 })
 ```
 
-A plugin's rules are named `<plugin>/<rule>`, so `docs/no-todo` above. Plugins need a JavaScript or TypeScript config file; they can't be written in `kiira.config.json`. See [Rules](/latest/configuration/rules) for how to write one.
+A plugin's rules are named `<plugin>/<rule>`, so `docs/no-todo` above. Plugins need a JavaScript or TypeScript config file; they can't be written in `kiira.config.json`. See [Writing a plugin](/latest/plugins/writing-a-plugin) for how to write one.
 
 ## `presets`
 
@@ -187,15 +187,7 @@ presets: [
 ]
 ```
 
-| Field | Type | What it does |
-| --- | --- | --- |
-| `name` | `string` | Required. |
-| `extends` | `string[]` | Presets applied before this one, by name. A cycle is an error. |
-| `include` | `string[] \| (project) => string[]` | Added to the top-level `include`. The function form is called with the project (`cwd`, `packageJson`, `workspacePackages`, `isTracked`) before files are discovered. |
-| `exclude` | `string[]` | Added to the top-level `exclude`. |
-| `allowEmpty` | `boolean` | When true and no file matches, Kiira skips the run, prints `No files matched; nothing to check.`, and exits `0`. Without it, an empty match is a normal run with zero files. |
-| `codeFenceLanguages` | `string[]` | The fence identifiers to recognize. The last preset that sets it wins, unless you set `markdown.codeFenceLanguages` yourself. |
-| `rules` | `Record<string, RuleSetting>` | Rule settings, applied in the order described in [how settings merge](#how-rule-settings-merge). |
+Every preset field (`extends`, `include`, `exclude`, `allowEmpty`, `codeFenceLanguages`, `rules`, `typescript`) is in the [presets reference](/latest/plugins/rules-and-presets#presets).
 
 `--entry` and positional paths on the CLI replace the whole `include` set, presets included.
 
@@ -223,15 +215,7 @@ You can also set a level for one run with [`--rule`](/latest/cli/flags#--rule-id
 
 ### How rule settings merge
 
-Each layer is applied on top of the one before it:
-
-1. Each rule's built-in default level.
-2. [`presets`](#presets), in order, with each preset's `extends` applied first.
-3. Top-level `rules`. `checkUnusedSymbols` and `checkRelativeImports` count as this layer; an explicit `rules` entry for the same rule wins.
-4. Matching [`overrides`](#overrides), in order. Within an override, its `presets` apply before its `rules`.
-5. `--rule` on the CLI.
-
-A level without options keeps the options set by an earlier layer.
+Built-in defaults, then presets, then `rules`, then matching `overrides`, then `--rule`. The [reference](/latest/plugins/rules-and-presets#how-settings-merge) has each step.
 
 ## `overrides`
 
