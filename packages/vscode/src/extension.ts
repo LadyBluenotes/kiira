@@ -5,6 +5,7 @@ import {
 	type KiiraDiagnostic,
 	type VirtualFile,
 	checkMarkdownFiles,
+	closeNativeEngine,
 	loadConfig,
 	loadConfigFile,
 	setTypescriptLibDir,
@@ -280,11 +281,12 @@ export function activate(context: vscode.ExtensionContext): void {
 	}
 }
 
-export function deactivate(): void {
+export async function deactivate(): Promise<void> {
 	for (const timer of debounceTimers.values()) {
 		clearTimeout(timer)
 	}
 	debounceTimers.clear()
 	collection?.dispose()
 	output?.dispose()
+	await closeNativeEngine()
 }

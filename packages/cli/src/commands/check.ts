@@ -3,6 +3,7 @@ import { isAbsolute, join, resolve } from "node:path"
 import {
 	type KiiraConfig,
 	checkMarkdownFiles,
+	closeNativeEngine,
 	collectExternalPackages,
 	ensureExternalPackages,
 	findConfigFile,
@@ -121,6 +122,7 @@ export async function runCheck(options: RunCheckOptions): Promise<number> {
 		}
 	} finally {
 		spinner.stop()
+		await closeNativeEngine(cwd)
 	}
 
 	for (const message of pending) {

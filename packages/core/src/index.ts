@@ -48,6 +48,7 @@ export {
 	resolveTsconfigPath,
 	setTypescriptLibDir,
 } from "./check"
+export { closeNativeEngine } from "./engine"
 export {
 	type CodeFixAction,
 	type CodeFixEdit,
