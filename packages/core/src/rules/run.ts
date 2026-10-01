@@ -7,6 +7,7 @@ import { rulesForFile } from "../config"
 import type {
 	DocumentParseError,
 	ExtractedSnippet,
+	Frontmatter,
 	KiiraDiagnostic,
 	KiiraFs,
 	KiiraProject,
@@ -101,6 +102,7 @@ export interface RuleRun {
 export interface RuleDocument {
 	file: string
 	text: string
+	frontmatter?: Frontmatter
 	mdast: Root
 	parseError?: DocumentParseError
 	snippets: ExtractedSnippet[]
@@ -152,6 +154,7 @@ function documentContext(
 	return {
 		file: doc.file,
 		text: doc.text,
+		frontmatter: doc.frontmatter,
 		mdast: doc.mdast,
 		parseError: doc.parseError,
 		snippets: doc.snippets,
