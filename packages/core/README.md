@@ -89,17 +89,6 @@ console.log(result.stats) // { markdownFiles, snippets, checked, ignored, errors
 > `config` accepts a `Partial<KiiraConfig>`; omit it to load the nearest `kiira.config.*`.
 > Every input/result shape is fully typed — let your editor guide you, or read the exports below.
 
-When `engine: "native"` is selected, or `"auto"` selects TypeScript 7, `kiira-core` reuses one TypeScript API session per `cwd` across checks. Long-lived hosts must close sessions when their checker lifetime ends:
-
-```ts
-import { closeNativeEngine } from "kiira-core"
-
-await closeNativeEngine(process.cwd()) // Close one workspace.
-await closeNativeEngine() // Close every workspace session.
-```
-
-The CLI and VS Code extension close their sessions when their check lifetime ends.
-
 ## Public API
 
 `kiira-core` exports the whole pipeline. Highlights:
@@ -116,6 +105,17 @@ The CLI and VS Code extension close their sessions when their check lifetime end
 | `discoverWorkspacePackages`, `parsePnpmWorkspacePackages`, `buildWorkspaceResolution` | Monorepo-aware package resolution. |
 | `closeNativeEngine` | Release the native TypeScript session for one `cwd`, or all sessions when omitted. |
 | `KIIRA_CORE_VERSION` | The installed engine version. |
+
+When `engine: "native"` is selected, or `"auto"` selects TypeScript 7, `kiira-core` reuses one TypeScript API session per `cwd` across checks. Each snapshot invalidates TypeScript's cached file-system state so disk changes remain visible. Long-lived hosts must close sessions when their checker lifetime ends:
+
+```ts
+import { closeNativeEngine } from "kiira-core"
+
+await closeNativeEngine(process.cwd()) // Close one workspace.
+await closeNativeEngine() // Close every workspace session.
+```
+
+The CLI closes its session when its check lifetime ends. The VS Code extension closes sessions on deactivation and when a workspace folder is removed.
 
 All input/result/option shapes are exported as types (e.g. `KiiraConfig`, `ResolvedKiiraConfig`,
 `KiiraLanguage`, `SnippetExtraction`, `BuiltVirtualFile`, `CheckMarkdownFilesInput`,

@@ -14,6 +14,7 @@ import * as vscode from "vscode"
 import { checkDocument } from "./check-document"
 import { KiiraCodeActionProvider } from "./code-actions"
 import { diagnosticCodeLabel, selectDiagnostics } from "./diagnostics"
+import { closeRemovedWorkspaceFolderSessions } from "./workspace-folders"
 
 const VIRTUAL_SCHEME = "kiira"
 
@@ -225,6 +226,12 @@ export function activate(context: vscode.ExtensionContext): void {
 		collection,
 		output,
 		vscode.workspace.registerTextDocumentContentProvider(VIRTUAL_SCHEME, provider),
+		vscode.workspace.onDidChangeWorkspaceFolders((event) => {
+			void closeRemovedWorkspaceFolderSessions(event.removed).catch((error) => {
+				const message = error instanceof Error ? error.message : String(error)
+				output.appendLine(`Error closing native sessions for removed workspace folders: ${message}`)
+			})
+		}),
 		vscode.workspace.onDidOpenTextDocument((document) => void checkAndPublish(document)),
 		vscode.workspace.onDidChangeTextDocument((event) => {
 			const settings = readSettings()
