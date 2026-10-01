@@ -104,10 +104,22 @@ function fileSystemFingerprint(path: string): string | undefined {
 	}
 }
 
+function resolutionDirectoryFingerprint(path: string): string | undefined {
+	try {
+		const stat = statSync(path, { bigint: true })
+		return `${stat.dev}:${stat.ino}:${stat.mode}`
+	} catch (error) {
+		if (isMissingPathError(error)) {
+			return undefined
+		}
+		throw error
+	}
+}
+
 function rememberResolutionDirectory(cache: ClassicResolutionCache, path: string): void {
 	const key = resolutionPath(path)
 	if (!cache.directories.has(key)) {
-		cache.directories.set(key, fileSystemFingerprint(path))
+		cache.directories.set(key, resolutionDirectoryFingerprint(path))
 	}
 }
 
@@ -120,7 +132,7 @@ function rememberResolutionFile(cache: ClassicResolutionCache, path: string): vo
 
 function hasChangedResolutionInputs(cache: ClassicResolutionCache): boolean {
 	for (const [path, fingerprint] of cache.directories) {
-		if (fileSystemFingerprint(path) !== fingerprint) {
+		if (resolutionDirectoryFingerprint(path) !== fingerprint) {
 			return true
 		}
 	}
@@ -210,6 +222,7 @@ function createOverlayHost(cwd: string, options: ts.CompilerOptions, virtualFile
 	host.fileExists = (fileName) => {
 		if (resolvingModule && !overlay.has(normalize(fileName))) {
 			rememberResolutionDirectory(resolutionCache, dirname(fileName))
+			rememberResolutionFile(resolutionCache, fileName)
 		}
 		return overlay.has(normalize(fileName)) || originalFileExists(fileName)
 	}
@@ -225,6 +238,9 @@ function createOverlayHost(cwd: string, options: ts.CompilerOptions, virtualFile
 
 	const originalDirectoryExists = host.directoryExists?.bind(host) ?? ts.sys.directoryExists?.bind(ts.sys)
 	host.directoryExists = (directoryName) => {
+		if (resolvingModule) {
+			rememberResolutionDirectory(resolutionCache, directoryName)
+		}
 		return overlayDirectories.has(normalize(directoryName)) || (originalDirectoryExists?.(directoryName) ?? false)
 	}
 
