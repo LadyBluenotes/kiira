@@ -115,6 +115,33 @@ A few things to know:
 - A `program` rule also gets `ctx.program`, `ctx.checker`, and `ctx.toMarkdownRange(virtualFile, start, end)`, which maps an offset span in a snippet's generated file back to a Markdown range. It returns `undefined` for generated code.
 - A rule that throws fails the run with an error that names the rule and the file.
 
+## Frontmatter
+
+A document that starts with a `---` line and has a later line of exactly `---` has frontmatter. Rules get it as `ctx.frontmatter`, or `undefined` when the document has none:
+
+- `raw` is the text between the two `---` lines, with the file's own line endings.
+- `range` runs from the start of the opening `---` to the end of the closing `---`.
+- `bodyStart` is the first line after the block.
+
+Kiira does not parse YAML, so a plugin brings its own parser. The block is left out of `ctx.mdast`, and line numbers after it are the same as in the file. `ctx.text` is still the whole file. A byte order mark before the opening `---` means the document has no frontmatter.
+
+This rule requires a `name:` line:
+
+```ts
+import { defineRule } from "kiira-core/plugin"
+
+export const requireName = defineRule({
+  meta: { scope: "document", defaultSeverity: "error" },
+  create(ctx) {
+    const { frontmatter } = ctx
+    if (!frontmatter) return
+    if (!/^name:/m.test(frontmatter.raw)) {
+      ctx.report({ range: frontmatter.range, message: "Frontmatter needs a `name:` line." })
+    }
+  },
+})
+```
+
 Options that fail `validate`, an unknown rule id, and a plugin without a `name` all fail when the config is resolved, not when the rule runs.
 
 ## TypeScript hook
